@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cloud Monitoring Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --secondary-color: #3f37c9;
+            --accent-color: #4cc9f0;
+            --dark-color: #1a1a2e;
+            --light-color: #f8f9fa;
+            --danger-color: #f72585;
+            --warning-color: #ff9e00;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .dashboard-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            margin-bottom: 1.5rem;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .card-header {
+            background-color: white;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            font-weight: 600;
+            border-radius: 10px 10px 0 0 !important;
+        }
+        
+        .stat-card {
+            text-align: center;
+            padding: 1.5rem;
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0.5rem 0;
+        }
+        
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .cpu-card {
+            border-top: 4px solid var(--danger-color);
+        }
+        
+        .memory-card {
+            border-top: 4px solid var(--primary-color);
+        }
+        
+        .disk-card {
+            border-top: 4px solid var(--warning-color);
+        }
+        
+        .network-card {
+            border-top: 4px solid var(--accent-color);
+        }
+        
+        .alert-item {
+            border-left: 4px solid var(--danger-color);
+            transition: all 0.3s ease;
+        }
+        
+        .alert-item:hover {
+            background-color: rgba(247, 37, 133, 0.05);
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+        
+        .nav-tabs .nav-link {
+            border: none;
+            color: #6c757d;
+            font-weight: 500;
+            padding: 0.75rem 1.5rem;
+        }
+        
+        .nav-tabs .nav-link.active {
+            color: var(--primary-color);
+            border-bottom: 3px solid var(--primary-color);
+            background-color: transparent;
+        }
+        
+        .time-filter {
+            background-color: white;
+            border-radius: 50px;
+            padding: 0.5rem 1rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+        
+        .time-filter .btn {
+            padding: 0.375rem 1rem;
+            font-size: 0.85rem;
+            border-radius: 20px;
+        }
+        
+        .time-filter .btn.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .resource-indicator {
+            height: 10px;
+            border-radius: 5px;
+            background-color: #e9ecef;
+            overflow: hidden;
+        }
+        
+        .resource-fill {
+            height: 100%;
+            transition: width 0.5s ease;
+        }
+        
+        .log-item {
+            border-left: 3px solid transparent;
+            transition: all 0.2s ease;
+        }
+        
+        .log-item:hover {
+            background-color: rgba(67, 97, 238, 0.05);
+            border-left-color: var(--primary-color);
+        }
+        
+        .status-badge {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+        }
+        
+        .status-healthy {
+            background-color: #2ecc71;
+        }
+        
+        .status-warning {
+            background-color: #f39c12;
+        }
+        
+        .status-critical {
+            background-color: #e74c3c;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <div class="dashboard-header p-4 mb-4">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h1 class="h2 mb-0"><i class="bi bi-graph-up"></i> Cloud Monitoring Dashboard</h1>
+                    <p class="mb-0 opacity-75">Real-time system metrics and analytics</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <div class="time-filter d-inline-block">
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-light active">24h</button>
+                            <button class="btn btn-outline-light">7d</button>
+                            <button class="btn btn-outline-light">30d</button>
+                            <button class="btn btn-outline-light">Custom</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card cpu-card">
+                    <div class="card-body stat-card">
+                        <i class="bi bi-cpu fs-3 text-danger"></i>
+                        <div class="stat-value text-danger">{{ overall_stats.avg_cpu }}%</div>
+                        <div class="stat-label">CPU Usage</div>
+                        <div class="resource-indicator mt-2">
+                            <div class="resource-fill bg-danger" style="width: {{ overall_stats.avg_cpu }}%"></div>
+                        </div>
+                        <div class="mt-2 text-muted small">
+                            <span class="status-badge status-{% if overall_stats.cpu_status == 'healthy' %}healthy{% elif overall_stats.cpu_status == 'warning' %}warning{% else %}critical{% endif %}"></span>
+                            {{ overall_stats.cpu_status|title }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card memory-card">
+                    <div class="card-body stat-card">
+                        <i class="bi bi-memory fs-3 text-primary"></i>
+                        <div class="stat-value text-primary">{{ overall_stats.avg_memory }}%</div>
+                        <div class="stat-label">Memory Usage</div>
+                        <div class="resource-indicator mt-2">
+                            <div class="resource-fill bg-primary" style="width: {{ overall_stats.avg_memory }}%"></div>
+                        </div>
+                        <div class="mt-2 text-muted small">
+                            <span class="status-badge status-{% if overall_stats.memory_status == 'healthy' %}healthy{% elif overall_stats.memory_status == 'warning' %}warning{% else %}critical{% endif %}"></span>
+                            {{ overall_stats.memory_status|title }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card disk-card">
+                    <div class="card-body stat-card">
+                        <i class="bi bi-hdd fs-3 text-warning"></i>
+                        <div class="stat-value text-warning">{{ overall_stats.avg_disk }}%</div>
+                        <div class="stat-label">Disk Usage</div>
+                        <div class="resource-indicator mt-2">
+                            <div class="resource-fill bg-warning" style="width: {{ overall_stats.avg_disk }}%"></div>
+                        </div>
+                        <div class="mt-2 text-muted small">
+                            <span class="status-badge status-{% if overall_stats.disk_status == 'healthy' %}healthy{% elif overall_stats.disk_status == 'warning' %}warning{% else %}critical{% endif %}"></span>
+                            {{ overall_stats.disk_status|title }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card network-card">
+                    <div class="card-body stat-card">
+                        <i class="bi bi-wifi fs-3 text-info"></i>
+                        <div class="stat-value text-info">{{ overall_stats.network_in }}MB/s</div>
+                        <div class="stat-label">Network In</div>
+                        <div class="resource-indicator mt-2">
+                            <div class="resource-fill bg-info" style="width: 60%"></div>
+                        </div>
+                        <div class="mt-2 text-muted small">
+                            <span class="status-badge status-healthy"></span>
+                            Healthy
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Resource Utilization Trends</h5>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="chartDropdown" data-bs-toggle="dropdown">
+                                <i class="bi bi-gear"></i> Options
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="#" onclick="updateChart('24h')">Last 24 Hours</a></li>
+                                <li><a class="dropdown-item" href="#" onclick="updateChart('7d')">Last 7 Days</a></li>
+                                <li><a class="dropdown-item" href="#" onclick="updateChart('30d')">Last 30 Days</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="#" onclick="toggleAnomalyDetection()"><i class="bi bi-exclamation-triangle"></i> Toggle Anomaly Detection</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <ul class="nav nav-tabs" id="chartTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="cpu-tab" data-bs-toggle="tab" data-bs-target="#cpu-chart" type="button">CPU</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="memory-tab" data-bs-toggle="tab" data-bs-target="#memory-chart" type="button">Memory</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="disk-tab" data-bs-toggle="tab" data-bs-target="#disk-chart" type="button">Disk</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="network-tab" data-bs-toggle="tab" data-bs-target="#network-chart" type="button">Network</button>
+                            </li>
+                        </ul>
+                        <div class="tab-content p-3">
+                            <div class="tab-pane fade show active" id="cpu-chart" role="tabpanel">
+                                <div class="chart-container">
+                                    <canvas id="cpuChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="memory-chart" role="tabpanel">
+                                <div class="chart-container">
+                                    <canvas id="memoryChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="disk-chart" role="tabpanel">
+                                <div class="chart-container">
+                                    <canvas id="diskChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="network-chart" role="tabpanel">
+                                <div class="chart-container">
+                                    <canvas id="networkChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Recent Alerts</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="list-group list-group-flush">
+                            {% for alert in alerts %}
+                            <div class="list-group-item alert-item py-3">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <span class="badge bg-danger me-2">Alert</span>
+                                        <strong>{{ alert.metric|title }}</strong>
+                                    </div>
+                                    <small class="text-muted">{{ alert.timestamp }}</small>
+                                </div>
+                                <div class="mt-2">
+                                    <span class="badge bg-light text-dark"><i class="bi bi-speedometer2"></i> {{ alert.value }}%</span>
+                                    <span class="badge bg-light text-dark"><i class="bi bi-arrow-up-right"></i> {{ alert.threshold }}% threshold</span>
+                                </div>
+                                <p class="mb-0 mt-2 small">{{ alert.message }}</p>
+                            </div>
+                            {% empty %}
+                            <div class="list-group-item text-center py-4">
+                                <i class="bi bi-check-circle-fill text-success fs-1"></i>
+                                <p class="mt-2 mb-0">No active alerts</p>
+                                <small class="text-muted">All systems operational</small>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Recent Logs</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>CPU</th>
+                                        <th>Memory</th>
+                                        <th>Disk</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for log in logs|slice:":10" %}
+                                    <tr class="log-item">
+                                        <td><small>{{ log.timestamp }}</small></td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="progress flex-grow-1" style="height: 6px;">
+                                                    <div class="progress-bar bg-danger" role="progressbar" style="width: {{ log.cpu_usage }}%" aria-valuenow="{{ log.cpu_usage }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                                </div>
+                                                <small class="ms-2">{{ log.cpu_usage }}%</small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="progress flex-grow-1" style="height: 6px;">
+                                                    <div class="progress-bar bg-primary" role="progressbar" style="width: {{ log.memory_usage }}%" aria-valuenow="{{ log.memory_usage }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                                </div>
+                                                <small class="ms-2">{{ log.memory_usage }}%</small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="progress flex-grow-1" style="height: 6px;">
+                                                    <div class="progress-bar bg-warning" role="progressbar" style="width: {{ log.disk_usage }}%" aria-valuenow="{{ log.disk_usage }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                                </div>
+                                                <small class="ms-2">{{ log.disk_usage }}%</small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            {% if log.status == 'critical' %}
+                                            <span class="badge bg-danger">Critical</span>
+                                            {% elif log.status == 'warning' %}
+                                            <span class="badge bg-warning">Warning</span>
+                                            {% else %}
+                                            <span class="badge bg-success">Normal</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="5" class="text-center py-4">No logs available</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">System Health Overview</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>CPU Cores Utilization</h6>
+                                {% for core in cpu_cores %}
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <small>Core {{ forloop.counter }}</small>
+                                        <small>{{ core.usage }}%</small>
+                                    </div>
+                                    <div class="progress" style="height: 8px;">
+                                        <div class="progress-bar bg-danger" role="progressbar" style="width: {{ core.usage }}%" aria-valuenow="{{ core.usage }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Disk Partitions</h6>
+                                {% for disk in disk_partitions %}
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <small>{{ disk.mount }}</small>
+                                        <small>{{ disk.used_gb }}GB / {{ disk.total_gb }}GB</small>
+                                    </div>
+                                    <div class="progress" style="height: 8px;">
+                                        <div class="progress-bar bg-warning" role="progressbar" style="width: {{ disk.percent }}%" aria-valuenow="{{ disk.percent }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                                
+                                <h6 class="mt-4">Memory Allocation</h6>
+                                <div class="memory-allocation-chart">
+                                    <canvas id="memoryAllocationChart" height="150"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Sample data - in a real app, this would come from your backend
+        const timestamps = [
+            '00:00', '02:00', '04:00', '06:00', '08:00', 
+            '10:00', '12:00', '14:00', '16:00', '18:00', 
+            '20:00', '22:00'
+        ];
+        
+        const cpuData = [32, 28, 25, 45, 60, 75, 82, 78, 65, 58, 42, 35];
+        const memoryData = [45, 43, 47, 52, 58, 65, 72, 68, 63, 58, 52, 48];
+        const diskData = [55, 54, 56, 58, 57, 59, 62, 64, 63, 62, 60, 58];
+        const networkInData = [12, 15, 18, 22, 45, 60, 55, 42, 38, 32, 28, 20];
+        const networkOutData = [8, 10, 12, 15, 30, 42, 38, 28, 25, 20, 18, 12];
+        
+        // Create charts
+        const cpuCtx = document.getElementById('cpuChart').getContext('2d');
+        const memoryCtx = document.getElementById('memoryChart').getContext('2d');
+        const diskCtx = document.getElementById('diskChart').getContext('2d');
+        const networkCtx = document.getElementById('networkChart').getContext('2d');
+        const memoryAllocationCtx = document.getElementById('memoryAllocationChart').getContext('2d');
+        
+        const cpuChart = new Chart(cpuCtx, {
+            type: 'line',
+            data: {
+                labels: timestamps,
+                datasets: [{
+                    label: 'CPU Usage %',
+                    data: cpuData,
+                    borderColor: '#f72585',
+                    backgroundColor: 'rgba(247, 37, 133, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: getChartOptions('CPU Usage (%)')
+        });
+        
+        const memoryChart = new Chart(memoryCtx, {
+            type: 'line',
+            data: {
+                labels: timestamps,
+                datasets: [{
+                    label: 'Memory Usage %',
+                    data: memoryData,
+                    borderColor: '#4361ee',
+                    backgroundColor: 'rgba(67, 97, 238, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: getChartOptions('Memory Usage (%)')
+        });
+        
+        const diskChart = new Chart(diskCtx, {
+            type: 'line',
+            data: {
+                labels: timestamps,
+                datasets: [{
+                    label: 'Disk Usage %',
+                    data: diskData,
+                    borderColor: '#ff9e00',
+                    backgroundColor: 'rgba(255, 158, 0, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: getChartOptions('Disk Usage (%)')
+        });
+        
+        const networkChart = new Chart(networkCtx, {
+            type: 'line',
+            data: {
+                labels: timestamps,
+                datasets: [
+                    {
+                        label: 'Network In (MB/s)',
+                        data: networkInData,
+                        borderColor: '#4cc9f0',
+                        backgroundColor: 'rgba(76, 201, 240, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: true
+                    },
+                    {
+                        label: 'Network Out (MB/s)',
+                        data: networkOutData,
+                        borderColor: '#7209b7',
+                        backgroundColor: 'rgba(114, 9, 183, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: true
+                    }
+                ]
+            },
+            options: getChartOptions('Network Traffic (MB/s)')
+        });
+        
+        const memoryAllocationChart = new Chart(memoryAllocationCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Used', 'Cached', 'Free', 'Buffers'],
+                datasets: [{
+                    data: [65, 15, 15, 5],
+                    backgroundColor: [
+                        '#4361ee',
+                        '#4cc9f0',
+                        '#f72585',
+                        '#7209b7'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.label}: ${context.raw}%`;
+                            }
+                        }
+                    }
+                },
+                cutout: '70%'
+            }
+        });
+        
+        function getChartOptions(title) {
+            return {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                    },
+                    title: {
+                        display: false,
+                        text: title
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                }
+            };
+        }
+        
+        function updateChart(range) {
+            // In a real app, this would fetch new data from the server
+            console.log(`Updating charts for range: ${range}`);
+            
+            // Simulate loading new data
+            const newCpuData = cpuData.map(value => {
+                // Add some random variation
+                const variation = Math.floor(Math.random() * 10) - 5;
+                return Math.max(0, Math.min(100, value + variation));
+            });
+            
+            cpuChart.data.datasets[0].data = newCpuData;
+            cpuChart.update();
+            
+            // Show a toast notification
+            showToast(`Charts updated for ${range} range`);
+        }
+        
+        function toggleAnomalyDetection() {
+            // This would toggle anomaly detection in a real app
+            console.log('Toggling anomaly detection');
+            showToast('Anomaly detection toggled');
+        }
+        
+        function showToast(message) {
+            // Create toast element
+            const toast = document.createElement('div');
+            toast.className = 'position-fixed bottom-0 end-0 p-3';
+            toast.style.zIndex = '11';
+            
+            const toastInner = document.createElement('div');
+            toastInner.className = 'toast show';
+            toastInner.setAttribute('role', 'alert');
+            toastInner.setAttribute('aria-live', 'assertive');
+            toastInner.setAttribute('aria-atomic', 'true');
+            
+            toastInner.innerHTML = `
+                <div class="toast-header">
+                    <strong class="me-auto">Notification</strong>
+                    <small>Just now</small>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+                <div class="toast-body">
+                    ${message}
+                </div>
+            `;
+            
+            toast.appendChild(toastInner);
+            document.body.appendChild(toast);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                toast.remove();
+            }, 5000);
+        }
+        
+        // Initialize tooltips
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    </script>
+</body>
+</html>
